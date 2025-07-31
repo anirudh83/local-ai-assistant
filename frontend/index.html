@@ -3,223 +3,359 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Personal AI Assistant</title>
+    <title>Daily Coach</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0;
-            padding: 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
+            padding: 20px;
         }
-        .container {
-            max-width: 800px;
+        
+        .app {
+            max-width: 600px;
             margin: 0 auto;
             background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
             overflow: hidden;
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
         }
+        
         .header {
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             color: white;
             padding: 20px;
             text-align: center;
         }
+        
         .header h1 {
-            margin: 0;
-            font-size: 24px;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 5px;
         }
+        
         .status {
-            padding: 5px 15px;
             font-size: 14px;
-            border-radius: 15px;
-            margin-top: 10px;
-            display: inline-block;
+            opacity: 0.9;
         }
-        .connected {
-            background: rgba(255,255,255,0.2);
-            color: white;
+        
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
-        .disconnected {
-            background: rgba(255,0,0,0.2);
-            color: white;
-        }
-        .chat-box {
-            height: 500px;
+        
+        .messages {
+            flex: 1;
             padding: 20px;
             overflow-y: auto;
             background: #fafafa;
         }
+        
         .message {
-            margin-bottom: 15px;
             display: flex;
+            margin-bottom: 20px;
             align-items: flex-start;
-            gap: 10px;
+            gap: 12px;
         }
+        
         .message.user {
             flex-direction: row-reverse;
         }
-        .message-bubble {
-            max-width: 70%;
-            padding: 12px 16px;
-            border-radius: 18px;
-            line-height: 1.4;
-        }
-        .message.user .message-bubble {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-bottom-right-radius: 4px;
-        }
-        .message.assistant .message-bubble {
-            background: #e9ecef;
-            color: #333;
-            border-bottom-left-radius: 4px;
-        }
-        .message-avatar {
-            width: 32px;
-            height: 32px;
+        
+        .avatar {
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 16px;
-            font-weight: bold;
+            font-size: 18px;
             flex-shrink: 0;
         }
-        .message.user .message-avatar {
+        
+        .message.user .avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .message.coach .avatar {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .bubble {
+            max-width: 80%;
+            padding: 16px 20px;
+            border-radius: 20px;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+        
+        .message.user .bubble {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+            border-bottom-right-radius: 6px;
         }
-        .message.assistant .message-avatar {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
+        
+        .message.coach .bubble {
+            background: white;
+            color: #333;
+            border: 1px solid #e9ecef;
+            border-bottom-left-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
+        
         .input-area {
             padding: 20px;
             background: white;
-            border-top: 1px solid #eee;
+            border-top: 1px solid #e9ecef;
         }
+        
         .input-container {
             display: flex;
-            gap: 10px;
+            gap: 12px;
+            align-items: center;
         }
-        input[type="text"] {
+        
+        .message-input {
             flex: 1;
-            padding: 12px 16px;
+            padding: 16px 20px;
             border: 2px solid #e9ecef;
             border-radius: 25px;
             font-size: 16px;
             outline: none;
-            transition: border-color 0.3s;
+            transition: all 0.3s ease;
+            background: #fafafa;
         }
-        input[type="text"]:focus {
+        
+        .message-input:focus {
             border-color: #4facfe;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.1);
         }
-        button {
-            padding: 12px 24px;
+        
+        .send-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
             color: white;
-            border: none;
-            border-radius: 25px;
             cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            transition: transform 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
         }
-        button:hover {
-            transform: translateY(-1px);
+        
+        .send-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
         }
-        button:active {
+        
+        .send-btn:active {
             transform: translateY(0);
         }
-        .suggestions {
-            padding: 10px 20px;
-            background: #f8f9fa;
-            border-top: 1px solid #eee;
+        
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .routines-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            min-width: 250px;
+            max-height: 300px;
+            overflow-y: auto;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .routines-panel.open {
+            transform: translateX(0);
+        }
+        
+        .routines-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 15px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .routine-item {
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .routine-time {
+            font-weight: 600;
+            color: #4facfe;
+            font-size: 14px;
+        }
+        
+        .routine-name {
+            font-weight: 500;
+            margin: 2px 0;
+        }
+        
+        .routine-message {
+            font-size: 13px;
             color: #666;
         }
-        .suggestion-chip {
-            display: inline-block;
-            background: #e9ecef;
-            color: #495057;
-            padding: 5px 12px;
-            border-radius: 15px;
-            margin: 2px;
-            cursor: pointer;
-            transition: background 0.2s;
+        
+        .thinking {
+            display: none;
+            color: #666;
+            font-style: italic;
+            padding: 10px 20px;
         }
-        .suggestion-chip:hover {
-            background: #dee2e6;
+        
+        .thinking.show {
+            display: block;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .thinking {
+            animation: pulse 1.5s infinite;
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .app {
+                height: 90vh;
+                border-radius: 15px;
+            }
+            
+            .routines-panel {
+                position: fixed;
+                top: 0;
+                right: 0;
+                height: 100vh;
+                border-radius: 0;
+                border-top-left-radius: 20px;
+                border-bottom-left-radius: 20px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="app">
         <div class="header">
-            <h1>🤖 Your Daily Coach</h1>
-            <div id="status" class="status disconnected">
-                Connecting...
-            </div>
+            <h1>🤖 Daily Coach</h1>
+            <div class="status" id="status">Connecting to your intelligent coach...</div>
         </div>
         
-        <div id="chatBox" class="chat-box">
-            <div class="message assistant">
-                <div class="message-avatar">🤖</div>
-                <div class="message-bubble">
-                    Hi! I'm your personal daily coach. I help you:
-                    <br><br>
-                    🌅 <strong>Start your day right</strong> - Morning planning & energy check
-                    <br>📋 <strong>Build daily routines</strong> - Set up habits that stick
-                    <br>⏰ <strong>Stay on track</strong> - Gentle reminders throughout the day
-                    <br>📊 <strong>Track progress</strong> - See your patterns and growth
-                    <br><br>
-                    <strong>Let's start:</strong> How are you feeling today?
+        <div class="chat-container">
+            <div class="messages" id="messages">
+                <div class="message coach">
+                    <div class="avatar">🤖</div>
+                    <div class="bubble">
+                        Hi! I'm your intelligent daily coach. I understand natural conversation and help you build better habits.
+                        <br><br>
+                        <strong>Just talk to me naturally:</strong>
+                        <br>• "Good morning, help me plan my day"
+                        <br>• "I want to wake up at 7am and go for a walk"
+                        <br>• "I had a healthy breakfast this morning"
+                        <br>• "How am I doing this week?"
+                        <br><br>
+                        I'll automatically save your routines and track your progress. How can I help you today?
+                    </div>
+                </div>
+            </div>
+            
+            <div class="thinking" id="thinking">
+                Coach is thinking...
+            </div>
+            
+            <div class="input-area">
+                <div class="input-container">
+                    <input type="text" class="message-input" id="messageInput" 
+                           placeholder="Tell me what's on your mind..." />
+                    <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                        ➤
+                    </button>
                 </div>
             </div>
         </div>
-        
-        <div class="suggestions">
-            <strong>Start your day:</strong>
-            <span class="suggestion-chip" onclick="sendSuggestion('Good morning, help me plan my day')">Plan my day</span>
-            <span class="suggestion-chip" onclick="sendSuggestion('I feel energized today')">I feel energized</span>
-            <span class="suggestion-chip" onclick="sendSuggestion('I feel tired today')">I feel tired</span>
-            <span class="suggestion-chip" onclick="sendSuggestion('Set up my morning routine')">Setup routine</span>
-        </div>
-        
-        <div class="input-area">
-            <div class="input-container">
-                <input type="text" id="messageInput" placeholder="Tell me what you need..." />
-                <button onclick="sendMessage()">Send</button>
+    </div>
+    
+    <button class="routines-toggle" onclick="toggleRoutines()">
+        📅 My Routines
+    </button>
+    
+    <div class="routines-panel" id="routinesPanel">
+        <h3 style="margin-bottom: 15px; color: #333;">Your Daily Routines</h3>
+        <div id="routinesList">
+            <div style="color: #666; font-style: italic;">
+                No routines set yet. Ask me to create some!
             </div>
         </div>
     </div>
 
     <script>
         const API_URL = 'http://127.0.0.1:8000';
+        let isLoading = false;
         
+        // Check connection
         async function checkConnection() {
             try {
                 const response = await fetch(`${API_URL}/health`);
                 const data = await response.json();
-                
-                document.getElementById('status').innerHTML = '✅ Connected & Ready';
-                document.getElementById('status').className = 'status connected';
+                document.getElementById('status').textContent = '✅ Your intelligent coach is ready!';
             } catch (error) {
-                document.getElementById('status').innerHTML = '❌ Backend Offline';
-                document.getElementById('status').className = 'status disconnected';
+                document.getElementById('status').textContent = '❌ Coach offline - start backend';
             }
         }
         
+        // Send message
         async function sendMessage() {
             const input = document.getElementById('messageInput');
             const message = input.value.trim();
             
-            if (!message) return;
+            if (!message || isLoading) return;
             
+            // Add user message
             addMessage(message, 'user');
             input.value = '';
+            
+            // Show thinking indicator
+            isLoading = true;
+            document.getElementById('thinking').classList.add('show');
+            document.getElementById('sendBtn').disabled = true;
             
             try {
                 const response = await fetch(`${API_URL}/chat`, {
@@ -229,44 +365,86 @@
                 });
                 
                 const data = await response.json();
-                addMessage(data.response, 'assistant');
+                
+                // Hide thinking, add coach response
+                document.getElementById('thinking').classList.remove('show');
+                addMessage(data.response, 'coach');
+                
+                // Refresh routines in case AI added new ones
+                loadRoutines();
                 
             } catch (error) {
-                addMessage('Sorry, I cannot connect to my brain right now. Is the backend running?', 'assistant');
+                document.getElementById('thinking').classList.remove('show');
+                addMessage('Sorry, I cannot connect right now. Is the backend running?', 'coach');
             }
+            
+            isLoading = false;
+            document.getElementById('sendBtn').disabled = false;
         }
         
+        // Add message to chat
         function addMessage(text, sender) {
-            const chatBox = document.getElementById('chatBox');
+            const messagesDiv = document.getElementById('messages');
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${sender}`;
             
             const avatar = document.createElement('div');
-            avatar.className = 'message-avatar';
+            avatar.className = 'avatar';
             avatar.textContent = sender === 'user' ? '👤' : '🤖';
             
             const bubble = document.createElement('div');
-            bubble.className = 'message-bubble';
+            bubble.className = 'bubble';
             bubble.innerHTML = text.replace(/\n/g, '<br>');
             
             messageDiv.appendChild(avatar);
             messageDiv.appendChild(bubble);
-            chatBox.appendChild(messageDiv);
-            chatBox.scrollTop = chatBox.scrollHeight;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
         
-        function sendSuggestion(text) {
-            document.getElementById('messageInput').value = text;
-            sendMessage();
+        // Toggle routines panel
+        function toggleRoutines() {
+            const panel = document.getElementById('routinesPanel');
+            panel.classList.toggle('open');
+            loadRoutines();
         }
         
+        // Load and display routines
+        async function loadRoutines() {
+            try {
+                const response = await fetch(`${API_URL}/routines`);
+                const data = await response.json();
+                
+                const routinesList = document.getElementById('routinesList');
+                
+                if (data.routines && data.routines.length > 0) {
+                    routinesList.innerHTML = data.routines.map(routine => `
+                        <div class="routine-item">
+                            <div class="routine-time">${routine.time}</div>
+                            <div class="routine-name">${routine.name}</div>
+                            <div class="routine-message">${routine.message}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    routinesList.innerHTML = '<div style="color: #666; font-style: italic;">No routines set yet. Ask me to create some!</div>';
+                }
+                
+            } catch (error) {
+                console.log('Could not load routines');
+            }
+        }
+        
+        // Handle Enter key
         document.getElementById('messageInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
                 sendMessage();
             }
         });
         
+        // Initialize
         checkConnection();
+        loadRoutines();
     </script>
 </body>
 </html>
