@@ -22,7 +22,7 @@ app.add_middleware(
 
 # Load AI model (this will download on first run)
 print("🤖 Loading AI model...")
-chatbot = pipeline("text-generation", model="microsoft/DialoGPT-small", max_length=100)
+chatbot = pipeline("text-generation", model="gpt2", max_length=100, pad_token_id=50256)
 print("✅ AI model loaded!")
 
 # Simple data model
@@ -46,16 +46,36 @@ async def health():
 async def chat(message: ChatMessage):
     # Use the AI model to generate response
     try:
-        # Generate response using the AI model
-        result = chatbot(message.message, max_length=50, num_return_sequences=1)
+        # Create a prompt for better responses
+        prompt = f"Human: {message.message}\nAI Assistant:"
         
-        # Get the AI's response (remove the input part)
+        # Generate response using the AI model with better parameters
+        result = chatbot(
+            prompt, 
+            max_length=len(prompt.split()) + 40,
+            num_return_sequences=1, 
+            temperature=0.8,
+            do_sample=True,
+            repetition_penalty=1.2,
+            no_repeat_ngram_size=3
+        )
+        
+        # Get the AI's response
         full_text = result[0]['generated_text']
-        ai_response = full_text.replace(message.message, "").strip()
         
-        # If no new text was generated, provide a fallback
-        if not ai_response:
-            ai_response = "I understand. Can you tell me more?"
+        # Extract just the AI's part
+        if "AI Assistant:" in full_text:
+            ai_response = full_text.split("AI Assistant:")[-1].strip()
+        else:
+            ai_response = full_text.replace(prompt, "").strip()
+        
+        # Clean up the response - stop at first newline or "Human:"
+        ai_response = ai_response.split("\n")[0].strip()
+        ai_response = ai_response.split("Human:")[0].strip()
+        
+        # If no good response, provide fallback
+        if not ai_response or len(ai_response) < 3:
+            ai_response = "I'm still learning! Could you rephrase that?"
         
         return {
             "response": ai_response,
@@ -64,7 +84,7 @@ async def chat(message: ChatMessage):
     except Exception as e:
         # Fallback to simple response if AI fails
         return {
-            "response": f"AI Error: {str(e)}. Fallback: You said '{message.message}'",
+            "response": f"AI Error: {str(e)}",
             "timestamp": datetime.now().isoformat()
         }
 
