@@ -1,0 +1,64 @@
+# Byte-compiled / optimized / compiled files
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# Distributions
+dist/
+build/
+*.egg
+
+# Virtual environment
+.env/
+venv/
+env/
+# Add other common virtual environment names if you use them, e.g., venv_name/
+
+# Editor/IDE specific files
+.vscode/
+.idea/
+*.swp
+*.bak
+*~
+.DS_Store
+
+# Logs and databases
+*.log
+*.sqlite3
+db.sqlite3
+
+# Environment variables
+.env
+.flaskenv
+# Add other specific environment variable files if used, e.g., local_settings.py
+
+# Jupyter Notebook files
+.ipynb_checkpoints
+
+# PyInstaller
+*.spec
+build/
+dist/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+
+# Testing
+.tox/
+.nox/
+nosetests.xml
+coverage.xml
+
+# Documentation
+docs/_build/
+
+# Miscellaneous
+*.zip
+*.tar.gz
+*.rar
+*.7z
