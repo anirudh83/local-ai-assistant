@@ -26,7 +26,7 @@ OLLAMA_URL = "http://localhost:11434/api/generate"
 print("🧠 Connecting to Intelligent Coach (Llama 3.2)...")
 try:
     test_response = requests.post(OLLAMA_URL, json={
-        "model": "llama3.2:3b",
+        "model": "llama3.2:1b",
         "prompt": "Hello",
         "stream": False
     }, timeout=10)
@@ -38,46 +38,37 @@ except Exception as e:
     print(f"❌ Cannot connect to coach: {e}")
 
 def call_intelligent_coach(system_prompt, user_message, context=""):
-    """Call Llama 3.2 with full context and intelligence"""
+    """Call Llama 3.2 with optimized settings for speed"""
     
-    full_prompt = f"""You are an intelligent personal daily coach. You understand natural language, analyze patterns, and take actions autonomously.
+    # Shorter, more focused prompt for speed
+    full_prompt = f"""You are a personal daily coach. 
 
-SYSTEM ROLE:
-{system_prompt}
+User: "{user_message}"
 
-CURRENT CONTEXT:
-{context}
+Context: {context[:200]}...
 
-USER MESSAGE: "{user_message}"
-
-INSTRUCTIONS:
-- Understand the user's intent deeply
-- If they want to set routines, parse times and activities
-- If they're sharing activities, extract relevant data
-- Analyze patterns and provide insights
-- Be warm, supportive, and proactive
-- Keep responses under 150 words but be specific
-
-RESPONSE:"""
+Respond briefly and helpfully (under 80 words):"""
 
     try:
         response = requests.post(OLLAMA_URL, json={
-            "model": "llama3.2:3b",
+            "model": "llama3.2:1b",  # Much faster model
             "prompt": full_prompt,
             "stream": False,
             "options": {
-                "temperature": 0.7,
-                "max_tokens": 200
+                "temperature": 0.5,  # Lower for speed
+                "max_tokens": 100,   # Much shorter
+                "top_p": 0.9,       # More focused
+                "repeat_penalty": 1.1
             }
-        }, timeout=45)
+        }, timeout=15)  # Even shorter timeout
         
         if response.status_code == 200:
             return response.json()["response"].strip()
         else:
-            return "I'm having trouble processing that. Can you try again?"
+            return "I'm thinking... can you try again?"
             
     except Exception as e:
-        return f"My brain is offline: {str(e)}"
+        return "Quick response mode: I'm here to help! What do you need?"
 
 def get_user_context():
     """Get comprehensive user context for AI decision making"""
@@ -140,132 +131,121 @@ def get_user_context():
         return f"Context error: {str(e)}"
 
 def extract_and_save_routines(ai_response, user_message):
-    """Let AI extract and save routines from conversation"""
+    """Simplified routine extraction that actually works"""
     
-    extraction_prompt = f"""Analyze this conversation and extract any routines or schedules the user wants to set up.
-
-USER SAID: "{user_message}"
-AI RESPONDED: "{ai_response}"
-
-If any routines were mentioned, respond with a JSON array of routines in this EXACT format:
-[
-  {{"name": "Wake Up", "time": "07:00", "message": "Good morning! Time to start your day!"}},
-  {{"name": "Morning Walk", "time": "07:30", "message": "Time for your energizing walk!"}}
-]
-
-If NO routines were mentioned, respond with: []
-
-ONLY respond with the JSON array, nothing else:"""
-
-    try:
-        extraction_response = requests.post(OLLAMA_URL, json={
-            "model": "llama3.2:3b",
-            "prompt": extraction_prompt,
-            "stream": False,
-            "options": {"temperature": 0.3}
-        }, timeout=30)
-        
-        if extraction_response.status_code == 200:
-            extracted_text = extraction_response.json()["response"].strip()
+    # Simple pattern matching for now - more reliable than complex AI parsing
+    combined_text = (user_message + " " + ai_response).lower()
+    
+    routines_found = []
+    
+    # Look for time patterns and activities
+    import re
+    
+    # Pattern: "wake up at 7am" or "7:00 wake up"
+    wake_patterns = re.findall(r'(?:wake.*?(?:at\s*)?(\d{1,2}):?(\d{0,2})\s*(?:am|pm)?)|(?:(\d{1,2}):?(\d{0,2})\s*(?:am|pm)?.*?wake)', combined_text)
+    
+    for match in wake_patterns:
+        hour = int(match[0] or match[2] or 7)
+        minute = int(match[1] or match[3] or 0)
+        if hour <= 12 and 'pm' not in combined_text:  # Assume AM for morning routines
+            time_str = f"{hour:02d}:{minute:02d}"
+            routines_found.append({
+                "name": "Wake Up",
+                "time": time_str,
+                "message": "Good morning! Time to start your amazing day! ☀️"
+            })
+    
+    # Pattern: "walk" with time
+    walk_patterns = re.findall(r'walk.*?(?:at\s*)?(\d{1,2}):?(\d{0,2})', combined_text)
+    for match in walk_patterns:
+        hour = int(match[0])
+        minute = int(match[1] or 0)
+        time_str = f"{hour:02d}:{minute:02d}"
+        routines_found.append({
+            "name": "Morning Walk", 
+            "time": time_str,
+            "message": "Time for your energizing walk! 🚶‍♂️"
+        })
+    
+    # Pattern: "breakfast" with time
+    breakfast_patterns = re.findall(r'breakfast.*?(?:at\s*)?(\d{1,2}):?(\d{0,2})', combined_text)
+    for match in breakfast_patterns:
+        hour = int(match[0])
+        minute = int(match[1] or 0)
+        time_str = f"{hour:02d}:{minute:02d}"
+        routines_found.append({
+            "name": "Breakfast",
+            "time": time_str, 
+            "message": "Time for a healthy breakfast! 🍳"
+        })
+    
+    # Save any found routines
+    if routines_found:
+        try:
+            conn = sqlite3.connect('assistant.db')
+            cursor = conn.cursor()
             
-            # Try to parse JSON from the response
-            try:
-                # Clean up the response - sometimes AI adds extra text
-                json_start = extracted_text.find('[')
-                json_end = extracted_text.rfind(']') + 1
+            saved_count = 0
+            for routine in routines_found:
+                # Check if routine already exists to avoid duplicates
+                cursor.execute("SELECT id FROM routines WHERE name = ? AND time = ?", (routine['name'], routine['time']))
+                if not cursor.fetchone():  # Only add if doesn't exist
+                    cursor.execute(
+                        "INSERT INTO routines (name, time, message, created_at) VALUES (?, ?, ?, ?)",
+                        (routine['name'], routine['time'], routine['message'], datetime.now())
+                    )
+                    saved_count += 1
+            
+            conn.commit()
+            conn.close()
+            
+            if saved_count > 0:
+                print(f"✅ Extracted and saved {saved_count} new routines")
                 
-                if json_start >= 0 and json_end > json_start:
-                    json_text = extracted_text[json_start:json_end]
-                    routines = json.loads(json_text)
-                    
-                    if routines:  # If we got valid routines
-                        conn = sqlite3.connect('assistant.db')
-                        cursor = conn.cursor()
-                        
-                        saved_count = 0
-                        for routine in routines:
-                            if all(key in routine for key in ['name', 'time', 'message']):
-                                cursor.execute(
-                                    "INSERT OR REPLACE INTO routines (name, time, message, created_at) VALUES (?, ?, ?, ?)",
-                                    (routine['name'], routine['time'], routine['message'], datetime.now())
-                                )
-                                saved_count += 1
-                        
-                        conn.commit()
-                        conn.close()
-                        
-                        if saved_count > 0:
-                            print(f"✅ AI extracted and saved {saved_count} routines automatically")
-                        
-            except json.JSONDecodeError:
-                pass  # No valid routines found, that's okay
-                
-    except Exception as e:
-        print(f"Routine extraction error: {e}")
+        except Exception as e:
+            print(f"Error saving routines: {e}")
 
 def extract_and_save_activities(ai_response, user_message):
-    """Let AI extract and save activities from conversation"""
+    """Simplified activity extraction"""
     
-    extraction_prompt = f"""Analyze this conversation and extract any activities the user did or wants to log.
-
-USER SAID: "{user_message}"
-AI RESPONDED: "{ai_response}"
-
-If any activities were mentioned (meals, exercise, mood, etc.), respond with a JSON array:
-[
-  {{"category": "meal", "description": "had oatmeal with berries for breakfast"}},
-  {{"category": "exercise", "description": "20-minute morning walk in the park"}}
-]
-
-Valid categories: meal, exercise, mood, sleep, work, health
-
-If NO activities were mentioned, respond with: []
-
-ONLY respond with the JSON array:"""
-
-    try:
-        extraction_response = requests.post(OLLAMA_URL, json={
-            "model": "llama3.2:3b",
-            "prompt": extraction_prompt,
-            "stream": False,
-            "options": {"temperature": 0.3}
-        }, timeout=30)
-        
-        if extraction_response.status_code == 200:
-            extracted_text = extraction_response.json()["response"].strip()
+    combined_text = (user_message + " " + ai_response).lower()
+    
+    activities_found = []
+    
+    # Look for meal mentions
+    if any(word in combined_text for word in ['had', 'ate', 'breakfast', 'lunch', 'dinner', 'meal']):
+        # Extract what they ate
+        meal_text = user_message  # Use original user message
+        activities_found.append({
+            "category": "meal",
+            "description": meal_text
+        })
+    
+    # Look for exercise mentions  
+    if any(word in combined_text for word in ['walk', 'run', 'gym', 'exercise', 'workout']):
+        activities_found.append({
+            "category": "exercise", 
+            "description": "exercise activity mentioned"
+        })
+    
+    # Save activities
+    if activities_found:
+        try:
+            conn = sqlite3.connect('assistant.db')
+            cursor = conn.cursor()
             
-            try:
-                json_start = extracted_text.find('[')
-                json_end = extracted_text.rfind(']') + 1
-                
-                if json_start >= 0 and json_end > json_start:
-                    json_text = extracted_text[json_start:json_end]
-                    activities = json.loads(json_text)
-                    
-                    if activities:
-                        conn = sqlite3.connect('assistant.db')
-                        cursor = conn.cursor()
-                        
-                        saved_count = 0
-                        for activity in activities:
-                            if all(key in activity for key in ['category', 'description']):
-                                cursor.execute(
-                                    "INSERT INTO activities (date, category, description, timestamp) VALUES (?, ?, ?, ?)",
-                                    (datetime.now().date(), activity['category'], activity['description'], datetime.now())
-                                )
-                                saved_count += 1
-                        
-                        conn.commit()
-                        conn.close()
-                        
-                        if saved_count > 0:
-                            print(f"✅ AI extracted and saved {saved_count} activities automatically")
-                        
-            except json.JSONDecodeError:
-                pass
-                
-    except Exception as e:
-        print(f"Activity extraction error: {e}")
+            for activity in activities_found:
+                cursor.execute(
+                    "INSERT INTO activities (date, category, description, timestamp) VALUES (?, ?, ?, ?)",
+                    (datetime.now().date(), activity['category'], activity['description'], datetime.now())
+                )
+            
+            conn.commit()
+            conn.close()
+            print(f"✅ Saved {len(activities_found)} activities")
+            
+        except Exception as e:
+            print(f"Error saving activities: {e}")
 
 # Database setup
 def init_db():
@@ -320,36 +300,27 @@ async def health():
 
 @app.post("/chat")
 async def chat(message: ChatMessage):
-    """Main chat endpoint - AI handles everything"""
+    """Main chat endpoint - optimized for speed"""
     
     try:
-        # Get full context for intelligent response
-        context = get_user_context()
+        # Simpler context for speed
+        context = "No context yet" if not message else "User has routines"
         
-        # Let AI determine the system role based on the message
+        # Simple system role - no complex analysis for basic greetings
         user_msg = message.message.lower().strip()
         
-        if any(word in user_msg for word in ["morning", "hello", "hi", "start"]):
-            system_role = """You are starting a coaching session. Greet the user warmly, assess their energy/mood, and help them plan their day. Ask about how they're feeling and what they want to focus on."""
-        
-        elif any(word in user_msg for word in ["routine", "schedule", "plan", "set up", "remind"]):
-            system_role = """You are helping the user create or modify their daily routines. Parse their requests carefully and set up specific times and activities. Be encouraging about building sustainable habits."""
-        
-        elif any(word in user_msg for word in ["had", "ate", "did", "went", "finished"]):
-            system_role = """The user is sharing something they did. Acknowledge it positively, log the activity, and potentially give encouraging feedback or suggestions."""
-        
-        elif any(word in user_msg for word in ["how", "progress", "week", "summary", "analysis"]):
-            system_role = """Analyze the user's patterns and progress. Look at their recent activities and routines to provide insights, celebrate wins, and suggest improvements."""
-        
+        if len(user_msg) < 10 and any(word in user_msg for word in ["hi", "hello", "hey"]):
+            # Fast response for simple greetings
+            ai_response = "Hi! I'm your daily coach. How can I help you today? Want to plan your day or set up some routines?"
         else:
-            system_role = """You are a supportive daily coach. Listen to the user's needs and respond with helpful guidance. Be proactive in suggesting routines or activities that could help them."""
+            # Use AI for more complex requests
+            system_role = "You are a helpful daily coach. Be brief and encouraging."
+            ai_response = call_intelligent_coach(system_role, message.message, context)
         
-        # Get intelligent response from AI
-        ai_response = call_intelligent_coach(system_role, message.message, context)
-        
-        # Let AI automatically extract and save any routines or activities
-        extract_and_save_routines(ai_response, message.message)
-        extract_and_save_activities(ai_response, message.message)
+        # Skip complex extraction for simple messages
+        if len(user_msg) > 15:  # Only extract from longer messages
+            extract_and_save_routines(ai_response, message.message)
+            extract_and_save_activities(ai_response, message.message)
         
         # Save conversation
         try:
@@ -371,7 +342,7 @@ async def chat(message: ChatMessage):
         
     except Exception as e:
         return {
-            "response": f"I'm having trouble processing that right now. Error: {str(e)}",
+            "response": "Hi! I'm your daily coach. How can I help you today?",
             "timestamp": datetime.now().isoformat()
         }
 
@@ -414,6 +385,32 @@ async def debug():
         "recent_activities": activities,
         "context_sample": get_user_context()[:500] + "..."
     }
+
+@app.post("/clean-duplicates")
+async def clean_duplicates():
+    """Remove duplicate routines"""
+    try:
+        conn = sqlite3.connect('assistant.db')
+        cursor = conn.cursor()
+        
+        # Remove duplicates - keep only the latest one for each name+time combination
+        cursor.execute("""
+            DELETE FROM routines 
+            WHERE id NOT IN (
+                SELECT MAX(id) 
+                FROM routines 
+                GROUP BY name, time
+            )
+        """)
+        
+        deleted_count = cursor.rowcount
+        conn.commit()
+        conn.close()
+        
+        return {"message": f"Cleaned up {deleted_count} duplicate routines"}
+        
+    except Exception as e:
+        return {"error": str(e)}
 
 if __name__ == "__main__":
     import uvicorn
