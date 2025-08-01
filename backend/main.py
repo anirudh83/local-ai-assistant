@@ -303,10 +303,6 @@ async def chat(message: ChatMessage):
     """Main chat endpoint - optimized for speed"""
     
     try:
-        # Simpler context for speed
-        context = "No context yet" if not message else "User has routines"
-        
-        # Simple system role - no complex analysis for basic greetings
         user_msg = message.message.lower().strip()
         
         if len(user_msg) < 10 and any(word in user_msg for word in ["hi", "hello", "hey"]):
@@ -314,13 +310,19 @@ async def chat(message: ChatMessage):
             ai_response = "Hi! I'm your daily coach. How can I help you today? Want to plan your day or set up some routines?"
         else:
             # Use AI for more complex requests
+            context = "No context yet"
             system_role = "You are a helpful daily coach. Be brief and encouraging."
             ai_response = call_intelligent_coach(system_role, message.message, context)
         
-        # Skip complex extraction for simple messages
-        if len(user_msg) > 15:  # Only extract from longer messages
-            extract_and_save_routines(ai_response, message.message)
-            extract_and_save_activities(ai_response, message.message)
+        # ALWAYS try to extract routines and activities for ANY message longer than simple greetings
+        print(f"🤖 Processing message: {message.message}")
+        print(f"🤖 AI response: {ai_response}")
+        
+        # Force extraction for ALL messages
+        routines_saved = extract_and_save_routines(ai_response, message.message)
+        activities_saved = extract_and_save_activities(ai_response, message.message)
+        
+        print(f"📊 Summary: {routines_saved} routines, {activities_saved} activities saved")
         
         # Save conversation
         try:
@@ -332,8 +334,8 @@ async def chat(message: ChatMessage):
             )
             conn.commit()
             conn.close()
-        except:
-            pass
+        except Exception as e:
+            print(f"Conversation save error: {e}")
         
         return {
             "response": ai_response,
@@ -341,6 +343,7 @@ async def chat(message: ChatMessage):
         }
         
     except Exception as e:
+        print(f"Chat error: {e}")
         return {
             "response": "Hi! I'm your daily coach. How can I help you today?",
             "timestamp": datetime.now().isoformat()
@@ -386,31 +389,22 @@ async def debug():
         "context_sample": get_user_context()[:500] + "..."
     }
 
-@app.post("/clean-duplicates")
-async def clean_duplicates():
-    """Remove duplicate routines"""
-    try:
-        conn = sqlite3.connect('assistant.db')
-        cursor = conn.cursor()
-        
-        # Remove duplicates - keep only the latest one for each name+time combination
-        cursor.execute("""
-            DELETE FROM routines 
-            WHERE id NOT IN (
-                SELECT MAX(id) 
-                FROM routines 
-                GROUP BY name, time
-            )
-        """)
-        
-        deleted_count = cursor.rowcount
-        conn.commit()
-        conn.close()
-        
-        return {"message": f"Cleaned up {deleted_count} duplicate routines"}
-        
-    except Exception as e:
-        return {"error": str(e)}
+@app.post("/test-extraction")
+async def test_extraction(message: ChatMessage):
+    """Test extraction without AI - for debugging"""
+    
+    print(f"🧪 Testing extraction for: {message.message}")
+    
+    # Test with a simple AI response
+    fake_ai_response = "That sounds like a great routine!"
+    
+    routines_saved = extract_and_save_routines(fake_ai_response, message.message)
+    activities_saved = extract_and_save_activities(fake_ai_response, message.message)
+    
+    return {
+        "message": f"Extraction test complete: {routines_saved} routines, {activities_saved} activities saved",
+        "debug": "Check backend terminal for detailed logs"
+    }
 
 if __name__ == "__main__":
     import uvicorn
